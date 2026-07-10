@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Director Policy — the strongest model directs</title>
+<meta name="description" content="A portable operating policy for Claude Code: your strongest model directs the work while cheaper models execute. The judgment lives in files, not in any one model.">
+<script>document.documentElement.className="js";</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0}
+  :root{
+    /* deep cool drafting surface; chroma near 0 to dodge the warm-cream trap */
+    --bg:oklch(0.15 0.012 255);
+    --bg-2:oklch(0.185 0.014 255);
+    --surface:oklch(0.205 0.015 255);
+    --line:oklch(0.30 0.018 255);
+    --line-bright:oklch(0.40 0.02 255);
+    --ink:oklch(0.96 0.004 255);
+    --muted:oklch(0.74 0.012 255);
+    --faint:oklch(0.60 0.012 255);
+    /* single signal color: amber. one hue, three intensities = the tier ramp */
+    --signal:oklch(0.83 0.155 75);
+    --signal-2:oklch(0.72 0.12 72);
+    --signal-3:oklch(0.60 0.08 68);
+    --signal-glow:oklch(0.83 0.155 75 / 0.14);
+    --z-header:100;
+    --step:clamp(1.5rem,1.1rem + 2vw,2.5rem);
+    --gutter:clamp(1.25rem,0.6rem + 3vw,2.5rem);
+    --maxw:72rem;
+  }
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Archivo",system-ui,sans-serif;
+    font-size:clamp(1rem,0.97rem + 0.15vw,1.075rem);
+    line-height:1.6;
+    font-weight:400;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  /* faint schematic grid on the body, like a drafting surface */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:min(9vw,64px) min(9vw,64px);
+    opacity:.16;
+    -webkit-mask-image:radial-gradient(120% 90% at 50% 0%,#000 25%,transparent 78%);
+    mask-image:radial-gradient(120% 90% at 50% 0%,#000 25%,transparent 78%);
+  }
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3{font-weight:800;line-height:1.04;letter-spacing:-0.02em;text-wrap:balance}
+  p{text-wrap:pretty}
+  ::selection{background:var(--signal);color:var(--bg)}
+  :focus-visible{outline:2px solid var(--signal);outline-offset:3px;border-radius:4px}
+
+  .wrap{max-width:var(--maxw);margin-inline:auto;padding-inline:var(--gutter);position:relative;z-index:1}
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+  .tag{
+    font-family:"JetBrains Mono",monospace;font-size:.7rem;font-weight:500;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  }
+
+  /* ── header ── */
+  header.site{
+    position:sticky;top:0;z-index:var(--z-header);
+    backdrop-filter:blur(10px);
+    background:oklch(0.15 0.012 255 / 0.72);
+    border-bottom:1px solid var(--line);
+  }
+  header.site .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:.6rem;font-weight:700;letter-spacing:-0.01em}
+  .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--signal);box-shadow:0 0 0 4px var(--signal-glow);flex:none}
+  .brand small{color:var(--faint);font-weight:500}
+  .ghlink{
+    font-family:"JetBrains Mono",monospace;font-size:.8rem;font-weight:500;
+    color:var(--muted);border:1px solid var(--line);border-radius:7px;
+    padding:.4rem .7rem;transition:border-color .2s,color .2s,background .2s;
+  }
+  .ghlink:hover{color:var(--ink);border-color:var(--line-bright);background:var(--surface)}
+
+  /* ── hero ── */
+  .hero{padding:clamp(3.5rem,2rem + 9vw,7.5rem) 0 clamp(2rem,1rem + 4vw,3.5rem)}
+  .kicker{margin-bottom:1.6rem}
+  .hero h1{
+    font-size:clamp(2.3rem,1.5rem + 4.6vw,4.6rem);
+    max-width:16ch;
+  }
+  .hero .lede{
+    margin-top:1.5rem;max-width:52ch;color:var(--muted);
+    font-size:clamp(1.05rem,1rem + 0.4vw,1.25rem);
+  }
+  .principle{
+    margin-top:2.4rem;font-size:clamp(1.35rem,1rem + 1.9vw,2.35rem);
+    font-weight:900;letter-spacing:-0.03em;line-height:1.1;color:var(--signal);max-width:18ch;
+  }
+  .principle .sep{color:var(--line-bright);font-weight:400}
+  .cta{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:2.6rem}
+  .btn{
+    display:inline-flex;align-items:center;gap:.55rem;
+    font-weight:600;font-size:.95rem;border-radius:9px;padding:.72rem 1.15rem;
+    transition:transform .18s cubic-bezier(.2,.8,.2,1),background .2s,border-color .2s,color .2s;
+  }
+  .btn.primary{background:var(--signal);color:oklch(0.2 0.03 75);box-shadow:0 6px 24px -8px var(--signal)}
+  .btn.primary:hover{transform:translateY(-2px)}
+  .btn.ghost{border:1px solid var(--line-bright);color:var(--ink)}
+  .btn.ghost:hover{background:var(--surface);transform:translateY(-2px)}
+  .btn svg{width:1.1em;height:1.1em}
+
+  /* ── schematic band ── */
+  .schematic{border-block:1px solid var(--line);background:var(--bg-2);padding:clamp(2.2rem,1rem + 5vw,3.8rem) 0}
+  .schematic figcaption{margin-top:1.4rem;color:var(--faint);font-size:.82rem;text-align:center}
+  .schematic svg{width:100%;height:auto;display:block}
+  .flow-node{fill:var(--surface);stroke:var(--line-bright)}
+  .flow-node.dir{stroke:var(--signal);fill:oklch(0.83 0.155 75 / 0.08)}
+  .flow-label{font-family:"JetBrains Mono",monospace;font-size:12px;fill:var(--ink);font-weight:500}
+  .flow-label.dim{fill:var(--muted)}
+  .flow-sub{font-family:"Archivo",sans-serif;font-size:11px;fill:var(--faint)}
+  .flow-path{stroke:var(--line-bright);stroke-width:1.6;fill:none}
+  .flow-path.hot{stroke:var(--signal);stroke-width:2}
+  .flow-cap{font-family:"JetBrains Mono",monospace;font-size:10px;fill:var(--faint);letter-spacing:.06em;text-transform:uppercase}
+
+  /* ── generic section ── */
+  section{padding-block:clamp(3.2rem,2rem + 6vw,6rem);position:relative;z-index:1}
+  .sec-head{max-width:44ch;margin-bottom:clamp(2rem,1.4rem + 2vw,3rem)}
+  .sec-head h2{font-size:clamp(1.7rem,1.3rem + 2vw,2.7rem)}
+  .sec-head p{margin-top:.9rem;color:var(--muted);max-width:56ch}
+  .sec-num{font-family:"JetBrains Mono",monospace;color:var(--signal-3);font-size:.85rem;font-weight:500;display:block;margin-bottom:.7rem}
+
+  /* ── two modes: differentiated, not identical cards ── */
+  .modes{display:grid;gap:1rem;grid-template-columns:1fr}
+  @media(min-width:760px){.modes{grid-template-columns:1.05fr .95fr}}
+  .mode{border:1px solid var(--line);border-radius:14px;padding:clamp(1.4rem,1rem + 1.5vw,2rem);background:var(--surface);position:relative;overflow:hidden}
+  .mode.lead{border-color:var(--line-bright);background:linear-gradient(180deg,oklch(0.83 0.155 75 / 0.05),transparent 40%)}
+  .mode .cmd{font-family:"JetBrains Mono",monospace;font-weight:500;font-size:1.05rem;color:var(--signal);display:flex;align-items:center;gap:.6rem}
+  .mode.plain .cmd{color:var(--ink)}
+  .mode h3{font-size:1.15rem;margin:.9rem 0 .5rem;font-weight:700;letter-spacing:-0.01em}
+  .mode p{color:var(--muted);font-size:.95rem}
+  .badge{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;padding:.2rem .5rem;border-radius:5px;font-weight:500}
+  .badge.max{background:var(--signal);color:oklch(0.2 0.03 75)}
+  .badge.eco{background:var(--surface);border:1px solid var(--line-bright);color:var(--muted)}
+  .mode-note{margin-top:1.2rem;color:var(--faint);font-size:.85rem;display:flex;align-items:center;gap:.5rem}
+  .mode-note::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--signal);flex:none}
+
+  /* ── routing: ranked rows, luminance = rank ── */
+  .tiers{display:flex;flex-direction:column;gap:.7rem}
+  .tier{
+    display:grid;grid-template-columns:auto 1fr;gap:clamp(1rem,.6rem + 2vw,2rem);align-items:center;
+    border:1px solid var(--line);border-radius:12px;padding:clamp(1rem,.8rem + 1vw,1.5rem) clamp(1.1rem,.8rem + 1.5vw,1.8rem);
+    background:var(--surface);
+  }
+  .tier .rank{display:flex;align-items:center;gap:.9rem;min-width:9.5rem}
+  .tier .bar{width:6px;height:2.6rem;border-radius:3px;flex:none}
+  .t1 .bar{background:var(--signal)}
+  .t2 .bar{background:var(--signal-2)}
+  .t3 .bar{background:var(--signal-3)}
+  .tier .name{font-weight:800;font-size:1.15rem;letter-spacing:-0.01em}
+  .t1 .name{color:var(--ink)}
+  .t2 .name{color:oklch(0.85 0.01 255)}
+  .t3 .name{color:var(--muted)}
+  .tier .role{color:var(--muted);font-size:.92rem}
+  .tier .role b{color:var(--ink);font-weight:600}
+  .tier-note{margin-top:1.3rem;font-size:.85rem;color:var(--faint)}
+  .tier-note code{font-family:"JetBrains Mono",monospace;color:var(--signal-2);font-size:.9em}
+
+  /* ── director loop: compact horizontal chips ── */
+  .loop{display:flex;flex-wrap:wrap;align-items:stretch;gap:.55rem}
+  .chip{
+    flex:1 1 8.5rem;border:1px solid var(--line);border-radius:10px;padding:.9rem .95rem;background:var(--surface);
+    display:flex;flex-direction:column;gap:.35rem;
+  }
+  .chip .n{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--signal-3);font-weight:500}
+  .chip .w{font-weight:700;font-size:.98rem;letter-spacing:-0.01em}
+  .chip .d{color:var(--faint);font-size:.8rem;line-height:1.45}
+  .loop .arrow{align-self:center;color:var(--line-bright);flex:none;display:flex;align-items:center}
+  @media(max-width:640px){.loop .arrow{transform:rotate(90deg)}}
+
+  /* ── five gates: the centerpiece sequence ── */
+  .gates{position:relative;display:flex;flex-direction:column;gap:0}
+  .gate{
+    display:grid;grid-template-columns:auto 1fr;gap:clamp(1rem,.6rem + 2vw,1.8rem);
+    padding:clamp(1.3rem,1rem + 1.4vw,1.9rem) 0;border-top:1px solid var(--line);
+  }
+  .gate:last-child{border-bottom:1px solid var(--line)}
+  .gate .idx{
+    font-family:"JetBrains Mono",monospace;font-weight:500;font-size:1.5rem;
+    color:var(--signal);line-height:1;width:2.2rem;position:relative;
+  }
+  .gate .idx::after{content:"";position:absolute;left:.52rem;top:2.3rem;bottom:-2.6rem;width:1.5px;background:linear-gradient(var(--signal-3),transparent);opacity:.5}
+  .gate:last-child .idx::after{display:none}
+  .gate h3{font-size:1.2rem;font-weight:700;letter-spacing:-0.01em}
+  .gate p{margin-top:.4rem;color:var(--muted);font-size:.95rem;max-width:60ch}
+  .gate .g-name{color:var(--signal-2);font-weight:600}
+
+  /* ── install ── */
+  .install-grid{display:grid;gap:1.4rem;grid-template-columns:1fr}
+  @media(min-width:820px){.install-grid{grid-template-columns:.85fr 1.15fr;align-items:start}}
+  .code{
+    background:var(--bg-2);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  }
+  .code-head{display:flex;align-items:center;justify-content:space-between;padding:.55rem .8rem;border-bottom:1px solid var(--line);background:var(--surface)}
+  .code-head .dots{display:flex;gap:.4rem}
+  .code-head .dots i{width:9px;height:9px;border-radius:50%;background:var(--line-bright);display:block}
+  .code-head .dots i:first-child{background:var(--signal-3)}
+  .copy{
+    font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--muted);
+    background:none;border:1px solid var(--line);border-radius:6px;padding:.28rem .6rem;cursor:pointer;
+    transition:color .2s,border-color .2s;
+  }
+  .copy:hover{color:var(--ink);border-color:var(--line-bright)}
+  .copy.done{color:var(--signal);border-color:var(--signal-3)}
+  pre{margin:0;padding:1.1rem 1rem;overflow-x:auto;font-family:"JetBrains Mono",monospace;font-size:.82rem;line-height:1.75;color:var(--ink)}
+  pre .c{color:var(--faint)}
+  pre .k{color:var(--signal-2)}
+  .install-copy h2{font-size:clamp(1.7rem,1.3rem + 2vw,2.5rem)}
+  .install-copy p{margin-top:1rem;color:var(--muted);max-width:46ch}
+  .install-copy ul{margin-top:1.3rem;list-style:none;display:flex;flex-direction:column;gap:.7rem}
+  .install-copy li{display:flex;gap:.65rem;color:var(--muted);font-size:.92rem}
+  .install-copy li b{color:var(--ink);font-weight:600}
+  .install-copy li .m{color:var(--signal);flex:none;font-family:"JetBrains Mono",monospace}
+
+  /* ── footer ── */
+  footer.site{border-top:1px solid var(--line);padding-block:clamp(2.5rem,2rem + 3vw,4rem);margin-top:clamp(2rem,1rem + 4vw,4rem)}
+  footer.site .wrap{display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:space-between;align-items:flex-end}
+  footer .close{max-width:34ch;color:var(--muted)}
+  footer .close .principle-sm{color:var(--ink);font-weight:700;display:block;margin-bottom:.5rem;letter-spacing:-0.01em}
+  footer .meta{font-family:"JetBrains Mono",monospace;font-size:.78rem;color:var(--faint);text-align:right;line-height:2}
+  footer .meta a{color:var(--muted);border-bottom:1px solid var(--line-bright)}
+  footer .meta a:hover{color:var(--signal)}
+
+  /* ── motion ── */
+  @media(prefers-reduced-motion:no-preference){
+    .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+    .js .reveal.in{opacity:1;transform:none}
+    .js [data-stagger]>*{opacity:0;transform:translateY(14px)}
+    .js [data-stagger].in>*{opacity:1;transform:none;transition:opacity .55s cubic-bezier(.2,.7,.2,1),transform .55s cubic-bezier(.2,.7,.2,1)}
+    .hero .anim{opacity:0;animation:rise .8s cubic-bezier(.2,.7,.2,1) forwards}
+    .hero .kicker{animation-delay:.05s}.hero h1{animation-delay:.13s}.hero .lede{animation-delay:.24s}
+    .hero .principle{animation-delay:.36s}.hero .cta{animation-delay:.48s}
+    .flow-path.hot{stroke-dasharray:6 5;animation:dash 1.1s linear infinite}
+  }
+  @keyframes rise{to{opacity:1;transform:none}}
+  @keyframes dash{to{stroke-dashoffset:-22}}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="dot"></span>Director Policy <small class="mono">/ claude code</small></a>
+    <a class="ghlink" href="https://github.com/Aexagon/claude-director-policy">GitHub ↗</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap">
+      <p class="tag kicker anim">Claude Code · operating policy</p>
+      <h1 class="anim">The strongest model directs. Cheaper models do the work.</h1>
+      <p class="lede anim">A portable policy for Claude Code that puts your best model in the director's seat. It breaks the task apart, routes each piece to the right tier, and checks the result before trusting it. The judgment lives in files, not in any one model.</p>
+      <p class="principle anim">Models are rented.<br><span class="sep">/</span> Process is owned.</p>
+      <div class="cta anim">
+        <a class="btn primary" href="https://github.com/Aexagon/claude-director-policy">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          View the repository
+        </a>
+        <a class="btn ghost" href="#install">Install it →</a>
+      </div>
+    </div>
+  </section>
+
+  <figure class="schematic reveal">
+    <div class="wrap">
+      <svg viewBox="0 0 900 240" role="img" aria-labelledby="flowtitle">
+        <title id="flowtitle">The director loop: one director decomposes a task, dispatches parallel workers, verifies every result, and integrates.</title>
+        <!-- paths -->
+        <path class="flow-path hot" d="M150 120 H250"/>
+        <path class="flow-path" d="M370 120 C405 120 405 60 440 60"/>
+        <path class="flow-path" d="M370 120 H440"/>
+        <path class="flow-path" d="M370 120 C405 120 405 180 440 180"/>
+        <path class="flow-path" d="M560 60 C595 60 595 120 630 120"/>
+        <path class="flow-path" d="M560 120 H630"/>
+        <path class="flow-path" d="M560 180 C595 180 595 120 630 120"/>
+        <path class="flow-path hot" d="M750 120 H820"/>
+        <!-- director -->
+        <rect class="flow-node dir" x="20" y="92" width="130" height="56" rx="10"/>
+        <text class="flow-label" x="85" y="116" text-anchor="middle">DIRECTOR</text>
+        <text class="flow-sub" x="85" y="134" text-anchor="middle">frontier tier</text>
+        <text class="flow-cap" x="200" y="112" text-anchor="middle">decompose</text>
+        <!-- dispatch hub -->
+        <rect class="flow-node" x="250" y="96" width="120" height="48" rx="10"/>
+        <text class="flow-label dim" x="310" y="124" text-anchor="middle">dispatch</text>
+        <!-- workers -->
+        <rect class="flow-node" x="440" y="40" width="120" height="40" rx="9"/>
+        <text class="flow-label dim" x="500" y="64" text-anchor="middle">worker</text>
+        <rect class="flow-node" x="440" y="100" width="120" height="40" rx="9"/>
+        <text class="flow-label dim" x="500" y="124" text-anchor="middle">worker</text>
+        <rect class="flow-node" x="440" y="160" width="120" height="40" rx="9"/>
+        <text class="flow-label dim" x="500" y="184" text-anchor="middle">worker</text>
+        <text class="flow-cap" x="500" y="222" text-anchor="middle">floor tier · in parallel</text>
+        <!-- verify -->
+        <rect class="flow-node dir" x="630" y="96" width="120" height="48" rx="10"/>
+        <text class="flow-label" x="690" y="124" text-anchor="middle">VERIFY</text>
+        <!-- integrate -->
+        <rect class="flow-node" x="820" y="96" width="70" height="48" rx="10"/>
+        <text class="flow-label dim" x="855" y="124" text-anchor="middle" style="font-size:10px">done</text>
+      </svg>
+      <figcaption class="mono">the loop, every substantive task: decompose → route → dispatch in parallel → verify → integrate</figcaption>
+    </div>
+  </figure>
+
+  <section id="why">
+    <div class="wrap sec-head reveal">
+      <h2>Hand your best model the clipboard, not the keyboard</h2>
+      <p>One top-tier model doing everything gives the best result per step. It also doesn't scale: no parallelism, its context fills with noise on long jobs, and it bills premium rates to rename a variable. Delegation fixes all three, but only when the delegation is disciplined. This policy is that discipline, written down as files a model reads and follows.</p>
+    </div>
+  </section>
+
+  <section id="modes">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-num">two modes</span>
+        <h2>Full control, or half the cost</h2>
+        <p>Both live in a single chat. You switch tiers with <code class="mono" style="color:var(--signal-2)">/model</code>; the conversation carries over. No new chat, no copied brief.</p>
+      </div>
+      <div class="modes" data-stagger>
+        <div class="mode lead">
+          <div class="cmd">/direct <span class="badge max">default · max quality</span></div>
+          <h3>The director runs the whole loop</h3>
+          <p>Your strongest model plans, dispatches workers, checks every result, and integrates the pieces. Top-tier judgment on every decision, including the small mid-task ones. This is the default and the highest-quality path.</p>
+        </div>
+        <div class="mode plain">
+          <div class="cmd">/plan <span class="badge eco">economy</span></div>
+          <h3>The director plans, then steps aside</h3>
+          <p>Your strongest model produces the plan and a routing table, then you drop the same chat one tier down to run it. You trade a little mid-task judgment for roughly half the orchestration cost.</p>
+        </div>
+      </div>
+      <p class="mode-note">Stuck mid-task? Flip back up one tier, ask the hard question, flip down to keep building. Same chat throughout.</p>
+    </div>
+  </section>
+
+  <section id="routing">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-num">the routing table</span>
+        <h2>Three tiers, one rule</h2>
+        <p>A piece with a checklist and a verifiable output routes down. A piece needing judgment, taste, or a decision a human will see stays up.</p>
+      </div>
+      <div class="tiers" data-stagger>
+        <div class="tier t1">
+          <div class="rank"><span class="bar"></span><span class="name">Frontier</span></div>
+          <p class="role"><b>Director only, never a subagent.</b> Plans, verdicts, decisions that must be right, taste-critical client work. Where the intelligence originates.</p>
+        </div>
+        <div class="tier t2">
+          <div class="rank"><span class="bar"></span><span class="name">Mid</span></div>
+          <p class="role"><b>Fallback director and heavy worker.</b> Anything a human sees, taste-heavy work, and any piece that came back weak from the floor.</p>
+        </div>
+        <div class="tier t3">
+          <div class="rank"><span class="bar"></span><span class="name">Floor</span></div>
+          <p class="role"><b>The workhorse.</b> Coding, edits, research, drafts, searches, audits, bulk work. Nothing runs below it.</p>
+        </div>
+      </div>
+      <p class="tier-note mono">Tuned on <code>Fable 5</code> → <code>Opus 4.8</code> → <code>Sonnet 5</code>. Drop in your own three tiers.</p>
+    </div>
+  </section>
+
+  <section id="loop">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-num">the director loop</span>
+        <h2>Five moves, every substantive task</h2>
+      </div>
+      <div class="loop reveal">
+        <div class="chip"><span class="n">01</span><span class="w">Decompose</span><span class="d">Break the request into named, independent problems.</span></div>
+        <span class="arrow" aria-hidden="true">→</span>
+        <div class="chip"><span class="n">02</span><span class="w">Route</span><span class="d">Grade each piece; send it to the right tier.</span></div>
+        <span class="arrow" aria-hidden="true">→</span>
+        <div class="chip"><span class="n">03</span><span class="w">Dispatch</span><span class="d">Parallel workers, each with a self-contained brief.</span></div>
+        <span class="arrow" aria-hidden="true">→</span>
+        <div class="chip"><span class="n">04</span><span class="w">Verify</span><span class="d">Read the diff. Never trust a completion report.</span></div>
+        <span class="arrow" aria-hidden="true">→</span>
+        <div class="chip"><span class="n">05</span><span class="w">Integrate</span><span class="d">Resolve conflicts, report what's done and what's blocked.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="gates">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-num">the director method</span>
+        <h2>Five gates the director runs on itself</h2>
+        <p>The discipline behind the loop. A skill file can't transfer intelligence; it transfers how to scope, gather evidence, attack your own plan, verify, and report. Each gate passes before the next opens.</p>
+      </div>
+      <div class="gates reveal">
+        <div class="gate">
+          <div class="idx">1</div>
+          <div><h3><span class="g-name">Scope</span> before work</h3><p>Restate the task and what "done and correct" looks like. Name what's out of scope. Budget effort to the stakes: a lookup gets minutes, an irreversible change gets the full method.</p></div>
+        </div>
+        <div class="gate">
+          <div class="idx">2</div>
+          <div><h3><span class="g-name">Evidence</span> before reasoning</h3><p>Never design from memory of what a file or API "probably" looks like. Open it, quote the line. Training memory is a hypothesis generator, not a source.</p></div>
+        </div>
+        <div class="gate">
+          <div class="idx">3</div>
+          <div><h3><span class="g-name">Attack</span> your own answer</h3><p>Before committing, switch sides and try to break it. Write down the likeliest failure mode and its countermove. A plan with no way to fail isn't understood yet.</p></div>
+        </div>
+        <div class="gate">
+          <div class="idx">4</div>
+          <div><h3><span class="g-name">Verify</span> before declaring done</h3><p>"It ran" is not "it's right." Diff the files, run the test, compare numbers to their source. Never trust a completion report, a worker's or your own. Flag what you couldn't verify.</p></div>
+        </div>
+        <div class="gate">
+          <div class="idx">5</div>
+          <div><h3><span class="g-name">Report</span> with calibration</h3><p>Lead with the outcome in one sentence. Separate what you verified, what you inferred, and what you assumed. State confidence and what would change your mind.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <div class="install-grid">
+        <div class="install-copy reveal">
+          <h2>Install</h2>
+          <p>Copy the files into your Claude Code config at <code class="mono" style="color:var(--signal-2)">~/.claude</code>, then open a session.</p>
+          <ul>
+            <li><span class="m">·</span><span><b>Review <span class="mono">CLAUDE.md</span> first.</b> Merge it into your existing global instructions rather than overwriting.</span></li>
+            <li><span class="m">·</span><span><b>Set your default model.</b> Point it at your frontier tier at high effort so every session opens as a director.</span></li>
+            <li><span class="m">·</span><span><b>Swap the tiers.</b> The routing table names the models it was tuned on; replace them with yours.</span></li>
+          </ul>
+        </div>
+        <div class="code reveal">
+          <div class="code-head">
+            <div class="dots"><i></i><i></i><i></i></div>
+            <button class="copy mono" id="copyBtn" type="button">copy</button>
+          </div>
+<pre id="snippet"><span class="c"># from the repo root</span>
+cp CLAUDE.md ~/.claude/CLAUDE.md
+<span class="k">mkdir</span> -p ~/.claude/commands ~/.claude/skills ~/.claude/reference
+cp commands/*.md ~/.claude/commands/
+cp -r skills/director-method ~/.claude/skills/
+cp reference/dispatch-brief.md ~/.claude/reference/</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="close">
+      <span class="principle-sm">Judgment in a model is rented. Judgment in a file is owned.</span>
+      Take it, fork it, wire in your own models. That is the whole idea.
+    </div>
+    <div class="meta">
+      <a href="https://github.com/Aexagon/claude-director-policy">github.com/Aexagon/claude-director-policy</a><br>
+      MIT licensed · built as a Claude Code policy
+    </div>
+  </div>
+</footer>
+
+<script>
+  // reveal-on-scroll, with content visible by default when JS/observer is absent
+  (function(){
+    var els=document.querySelectorAll(".reveal,[data-stagger]");
+    if(!("IntersectionObserver"in window)){els.forEach(function(e){e.classList.add("in")});return;}
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){if(en.isIntersecting){en.target.classList.add("in");io.unobserve(en.target);}});
+    },{rootMargin:"0px 0px -8% 0px",threshold:0.12});
+    els.forEach(function(e){io.observe(e);});
+    // stagger children
+    document.querySelectorAll("[data-stagger]").forEach(function(g){
+      Array.prototype.forEach.call(g.children,function(c,i){c.style.transitionDelay=(i*70)+"ms";});
+    });
+  })();
+  // copy install snippet
+  (function(){
+    var btn=document.getElementById("copyBtn"),pre=document.getElementById("snippet");
+    if(!btn||!pre)return;
+    btn.addEventListener("click",function(){
+      var text=pre.innerText.replace(/^# from the repo root\n/,"");
+      navigator.clipboard.writeText(text).then(function(){
+        btn.textContent="copied";btn.classList.add("done");
+        setTimeout(function(){btn.textContent="copy";btn.classList.remove("done");},1800);
+      });
+    });
+  })();
+</script>
+</body>
+</html>
